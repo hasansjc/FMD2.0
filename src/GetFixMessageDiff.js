@@ -3,23 +3,18 @@ const { FIXParser } = require("fixparser");
 const fs = require("fs");
 const { deleteUnwantedTags, modifyDiffViewForMail } = require("./utils");
 const composeEmail = require("./composeEmail");
-// const csvFilePath = process.argv[2];
-// const range_from = process.argv[3] || 1;
-// const range_to = process.argv[4] || 100000;
 const jsonDiff = require("json-diff");
 const { createDiffFile } = require("./createDiffFile");
-// let originalFile = fs.readFileSync(csvFilePath, "utf8");
-// exports.originalFile = originalFile;
 const fixParser = new FIXParser();
 exports.fixParser = fixParser;
 fs.writeFileSync("diff.txt", "", "utf8");
 
 let email = "";
-let already_found = []
-let missingmessages = '';
-let missingmessagesforfile = '';
+let already_found = [];
+let missingmessages = "";
+let missingmessagesforfile = "";
 
-function getFixMessageDiff(originalFile,range_from,range_to) {
+function getFixMessageDiff(originalFile, range_from, range_to) {
   const org_messages = originalFile.split("\n");
   const messages = org_messages.slice(0, org_messages.length - 1);
   for (let i = 0; i < messages.length - 1; i++) {
@@ -31,28 +26,38 @@ function getFixMessageDiff(originalFile,range_from,range_to) {
         jsonmsg1.Body.Text.indexOf("TORA") != -1 ||
         jsonmsg1.Body.Text.indexOf("REDI") != -1
       ) {
-        let corresponding_msg_found = false;   
-        let msgType = jsonmsg1.Header.MsgType;    
-        let tag58 = jsonmsg1.Body.Text;  
-        let msgIndex = tag58.substring(4)   
-        let toSearchtag58 = tag58.substring(0,4)== `TORA`?`REDI${msgIndex}`:`TORA${msgIndex}`;  
+        let corresponding_msg_found = false;
+        let msgType = jsonmsg1.Header.MsgType;
+        let tag58 = jsonmsg1.Body.Text;
+        let msgIndex = tag58.substring(4);
+        let toSearchtag58 =
+          tag58.substring(0, 4) == `TORA`
+            ? `REDI${msgIndex}`
+            : `TORA${msgIndex}`;
         const msgNo = jsonmsg1.Body.Text.substr(4);
 
         for (let j = i + 1; j < messages.length; j++) {
           let message2 = fixParser.parse(messages[j]);
           const jsonmsg2 = message2[0].toFIXJSON();
           if (jsonmsg2.Body.Text) {
-
-            if(jsonmsg2.Header.MsgType == msgType && jsonmsg2.Body.Text == toSearchtag58){    
-                corresponding_msg_found = true; 
-                already_found.push({
-                    sender : toSearchtag58.substring(0,4) ==`TORA`? `REDI${msgIndex}`: `TORA${msgIndex}`,
-                    msgType
-                })          
-            }  
-            let found = already_found.find(element => element.sender == toSearchtag58 &&  element.msgType == msgType)
-            if(found)
-                corresponding_msg_found = true; 
+            if (
+              jsonmsg2.Header.MsgType == msgType &&
+              jsonmsg2.Body.Text == toSearchtag58
+            ) {
+              corresponding_msg_found = true;
+              already_found.push({
+                sender:
+                  toSearchtag58.substring(0, 4) == `TORA`
+                    ? `REDI${msgIndex}`
+                    : `TORA${msgIndex}`,
+                msgType,
+              });
+            }
+            let found = already_found.find(
+              (element) =>
+                element.sender == toSearchtag58 && element.msgType == msgType
+            );
+            if (found) corresponding_msg_found = true;
 
             if (
               jsonmsg2.Header.MsgType == msgType &&
@@ -74,26 +79,48 @@ function getFixMessageDiff(originalFile,range_from,range_to) {
                 diff = JSON.stringify(diff);
                 diff = modifyDiffViewForMail(diff, message1, message2);
                 email = email + composeEmail(message1, message2, diff);
-                console.log(message1[0].messageString.replaceAll("\x01", " | "));
-                console.log(message2[0].messageString.replaceAll("\x01", " | "));
                 console.log(
-                    jsonDiff.diffString(jsonmsg1, jsonmsg2, { color: true })
+                  message1[0].messageString.replaceAll("\x01", " | ")
                 );
-                createDiffFile(message1, message2, jsonmsg1, jsonmsg2,null);
+                console.log(
+                  message2[0].messageString.replaceAll("\x01", " | ")
+                );
+                console.log(
+                  jsonDiff.diffString(jsonmsg1, jsonmsg2, { color: true })
+                );
+                createDiffFile(message1, message2, jsonmsg1, jsonmsg2, null);
               }
             }
           }
         }
-        if (corresponding_msg_found == false){   
-            console.log(tag58," ","35 =",msgType, " corresponding message not found");  
-            missingmessages = missingmessages + tag58+" 35 = "+msgType+ "  Corresponding message not found<br>"
-            missingmessagesforfile = missingmessagesforfile + tag58+" 35 = "+msgType+ "  Corresponding message not found \n"
+        if (corresponding_msg_found == false) {
+          console.log(
+            tag58,
+            " ",
+            "35 =",
+            msgType,
+            "Corresponding message not found"
+          );
+          missingmessages =
+            missingmessages +
+            " Corresponding message of " +
+            tag58 +
+            " 35 = " +
+            msgType +
+            " not found<br>";
+          missingmessagesforfile =
+            missingmessagesforfile +
+            " Corresponding message of " +
+            tag58 +
+            " 35 = " +
+            msgType +
+            " not found\n";
         }
       }
     }
   }
-  email =  "<strong>Missing meesages</strong><br>" + missingmessages + email;
-  createDiffFile(null, null, null, null,missingmessagesforfile);
+  email = "<strong>Missing meesages</strong><br>" + missingmessages + email;
+  createDiffFile(null, null, null, null, missingmessagesforfile);
   return email;
 }
 

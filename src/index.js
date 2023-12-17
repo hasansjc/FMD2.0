@@ -7,12 +7,12 @@ const { isValidRange, getMaxRange } = require("./Range.js");
 
 let File;
 async function run() {
-    try {
+  try {
     let filePath = await getFilePath();
     File = fs.readFileSync(filePath, "utf8");
   } catch (error) {
-        console.log("Oops! No such file or directory exists.");
-        process.exit(1);
+    console.log("Oops! No such file or directory exists.");
+    process.exit(1);
   }
   if (File) {
     let [from, to] = await getRangeFromUser();
@@ -20,9 +20,9 @@ async function run() {
       const choice = await toSendEmailOrNot();
       if (choice == "Y" || choice == "y") {
         // const pass = await getPassword();
-        const email = getFixMessageDiff(File, from , to);
+        const email = getFixMessageDiff(File, from, to);
         sendMail(email);
-      } else getFixMessageDiff(File, from , to);
+      } else getFixMessageDiff(File, from, to);
     } else {
       console.log(
         "Max Range exceeds the number of message in the log file, Max Range is",
@@ -53,10 +53,10 @@ async function getRangeFromUser() {
   let range = readlineSync.question(
     "-------------------------------------------------------\nPlease enter the range separted by hiphen(-) eg, 10-20 OR \nPress Enter to get the diff of entire file : "
   );
-    if (range.length === 0) {
-        let maxRange = getMaxRange(File);
-        return [1, maxRange];
-    }
+  if (range.length === 0) {
+    let maxRange = getMaxRange(File);
+    return [1, maxRange];
+  }
   let rangeIsInvalid = true;
   while (rangeIsInvalid) {
     if (range.indexOf(" ") != -1 || range.indexOf("-") === -1) {
@@ -69,7 +69,13 @@ async function getRangeFromUser() {
       let to = parseInt(range.substring(range.indexOf("-") + 1, range.length));
       if (isNaN(from) || isNaN(to)) {
         rangeIsInvalid = true;
-        console.log("Range is invalid, Please try again");
+        console.log("Please enter numeric values, Please try again");
+        range = readlineSync.question(
+          "Please enter the range separted by hiphen(-) eg, 10-20 : "
+        );
+      } else if (from > to) {
+        rangeIsInvalid = true;
+        console.log("Range (TO) is less than Range (FROM), Please try again");
         range = readlineSync.question(
           "Please enter the range separted by hiphen(-) eg, 10-20 : "
         );
